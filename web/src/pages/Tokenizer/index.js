@@ -17,9 +17,9 @@ import {
 } from '@douyinfe/semi-ui';
 import {
   IconRefresh,
-  IconCheckCircle,
+  IconCheckCircleStroked,
   IconAlertTriangle,
-  IconCloudDownload,
+  IconDownload,
   IconInfoCircle,
   IconSetting
 } from '@douyinfe/semi-icons';
@@ -172,8 +172,8 @@ const TokenizerManagement = () => {
       width: 120,
       render: (status) => {
         const statusConfig = {
-          available: { color: 'green', icon: <IconCheckCircle />, text: '可用' },
-          updating: { color: 'blue', icon: <IconCloudDownload />, text: '更新中' },
+          available: { color: 'green', icon: <IconCheckCircleStroked />, text: '可用' },
+          updating: { color: 'blue', icon: <IconDownload />, text: '更新中' },
           error: { color: 'red', icon: <IconAlertTriangle />, text: '错误' }
         };
         const config = statusConfig[status] || statusConfig.error;
@@ -233,7 +233,7 @@ const TokenizerManagement = () => {
           <Tooltip content="验证分词器">
             <Button
               size="small"
-              icon={<IconCheckCircle />}
+              icon={<IconCheckCircleStroked />}
               onClick={() => verifyTokenizers(record.channel_id)}
             >
               验证
@@ -242,7 +242,7 @@ const TokenizerManagement = () => {
           <Tooltip content="更新分词器">
             <Button
               size="small"
-              icon={<IconCloudDownload />}
+              icon={<IconDownload />}
               onClick={() => updateTokenizers(record.channel_id, [record.model_name])}
             >
               更新
@@ -281,7 +281,7 @@ const TokenizerManagement = () => {
                   <Button
                     theme="solid"
                     type="primary"
-                    icon={<IconCloudDownload />}
+                    icon={<IconDownload />}
                     onClick={handleBatchUpdate}
                     disabled={selectedTokenizers.length === 0}
                   >
@@ -290,7 +290,7 @@ const TokenizerManagement = () => {
                   <Button
                     theme="solid"
                     type="danger"
-                    icon={<IconCloudDownload />}
+                    icon={<IconDownload />}
                     onClick={handleForceUpdateAll}
                   >
                     强制更新全部

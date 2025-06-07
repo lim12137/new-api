@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"one-api/common"
@@ -45,7 +44,7 @@ type UpdateResult struct {
 // GetTokenizers 获取分词器列表
 func GetTokenizers(c *gin.Context) {
 	// 获取所有HuggingFace类型的渠道
-	channels, err := model.GetChannelsByType(common.ChannelTypeHuggingFace)
+	channels, err := model.GetAllChannels(0, 0, true, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -57,7 +56,7 @@ func GetTokenizers(c *gin.Context) {
 	var tokenizers []TokenizerInfo
 
 	for _, channel := range channels {
-		if channel.Status != common.ChannelStatusEnabled {
+		if channel.Status != common.ChannelStatusEnabled || channel.Type != common.ChannelTypeHuggingFace {
 			continue
 		}
 
@@ -72,7 +71,7 @@ func GetTokenizers(c *gin.Context) {
 			tokenizer := TokenizerInfo{
 				ModelName:     modelName,
 				Status:        "available", // 默认状态
-				LastUpdated:   time.Unix(channel.UpdatedTime, 0),
+				LastUpdated:   time.Unix(channel.CreatedTime, 0),
 				Size:          "未知",
 				CacheLocation: fmt.Sprintf("/data/cache/models--%s", strings.ReplaceAll(modelName, "/", "--")),
 				ChannelId:     channel.Id,
@@ -80,7 +79,7 @@ func GetTokenizers(c *gin.Context) {
 			}
 
 			// 检查分词器状态（这里可以调用实际的检查逻辑）
-			tokenizer.Status = checkTokenizerStatus(channel.BaseUrl, modelName)
+			tokenizer.Status = checkTokenizerStatus(channel.GetBaseURL(), modelName)
 
 			tokenizers = append(tokenizers, tokenizer)
 		}
@@ -130,7 +129,7 @@ func UpdateTokenizers(c *gin.Context) {
 		}
 
 		// 调用分词器更新逻辑
-		success, message := updateTokenizerForModel(channel.BaseUrl, modelName, req.Force)
+		success, message := updateTokenizerForModel(channel.GetBaseURL(), modelName, req.Force)
 		result.Success = success
 		result.Message = message
 
@@ -200,7 +199,7 @@ func VerifyTokenizers(c *gin.Context) {
 		}
 
 		// 调用验证逻辑
-		success, message := verifyTokenizerForModel(channel.BaseUrl, modelName)
+		success, message := verifyTokenizerForModel(channel.GetBaseURL(), modelName)
 		result.Success = success
 		result.Message = message
 
