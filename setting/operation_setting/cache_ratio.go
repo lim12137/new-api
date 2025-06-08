@@ -90,6 +90,11 @@ func UpdateCacheRatioByJSONString(jsonStr string) error {
 
 // GetCacheRatio returns the cache ratio for a model
 func GetCacheRatio(name string) (float64, bool) {
+	// 自用模式下简化缓存倍率
+	if SelfUseModeEnabled {
+		return 1.0, true
+	}
+
 	cacheRatioMapMutex.RLock()
 	defer cacheRatioMapMutex.RUnlock()
 	ratio, ok := cacheRatioMap[name]
@@ -100,6 +105,11 @@ func GetCacheRatio(name string) (float64, bool) {
 }
 
 func GetCreateCacheRatio(name string) (float64, bool) {
+	// 自用模式下简化缓存创建倍率
+	if SelfUseModeEnabled {
+		return 1.0, true
+	}
+
 	ratio, ok := defaultCreateCacheRatio[name]
 	if !ok {
 		return 1.25, false // Default to 1.25 if not found

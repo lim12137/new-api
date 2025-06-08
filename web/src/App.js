@@ -13,14 +13,14 @@ import PasswordResetConfirm from './components/PasswordResetConfirm';
 import Channel from './pages/Channel';
 import Token from './pages/Token';
 import EditChannel from './pages/Channel/EditChannel';
-import Redemption from './pages/Redemption';
+
 import TopUp from './pages/TopUp';
 import Log from './pages/Log';
 import Chat from './pages/Chat';
 import Chat2Link from './pages/Chat2Link';
 import { Layout } from '@douyinfe/semi-ui';
 import Midjourney from './pages/Midjourney';
-import Pricing from './pages/Pricing/index.js';
+
 import Task from './pages/Task/index.js';
 import Playground from './pages/Playground/Playground.js';
 import OAuth2Callback from './components/OAuth2Callback.js';
@@ -105,14 +105,7 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path='/redemption'
-          element={
-            <PrivateRoute>
-              <Redemption />
-            </PrivateRoute>
-          }
-        />
+
         <Route
           path='/user'
           element={
@@ -261,14 +254,7 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path='/pricing'
-          element={
-            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
-              <Pricing />
-            </Suspense>
-          }
-        />
+
         <Route
           path='/about'
           element={

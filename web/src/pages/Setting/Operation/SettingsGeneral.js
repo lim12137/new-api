@@ -179,25 +179,16 @@ export default function GeneralSettings(props) {
             </Row>
             <Row>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-                <Form.Switch
-                  field={'DemoSiteEnabled'}
-                  label={t('演示站点模式')}
-                  size='default'
-                  checkedText='｜'
-                  uncheckedText='〇'
-                  onChange={handleFieldChange('DemoSiteEnabled')}
-                />
-              </Col>
-              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-                <Form.Switch
-                  field={'SelfUseModeEnabled'}
-                  label={t('自用模式')}
-                  extraText={t('开启后不限制：必须设置模型倍率')}
-                  size='default'
-                  checkedText='｜'
-                  uncheckedText='〇'
-                  onChange={handleFieldChange('SelfUseModeEnabled')}
-                />
+                <div style={{ padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #0ea5e9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0ea5e9' }}>
+                      {t('自用模式已启用')}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '12px' }}>
+                    {t('系统运行在自用模式下，专注于个人使用体验。')}
+                  </p>
+                </div>
               </Col>
             </Row>
             <Row>

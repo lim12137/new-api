@@ -343,6 +343,11 @@ func UpdateModelRatioByJSONString(jsonStr string) error {
 }
 
 func GetModelRatio(name string) (float64, bool) {
+	// 自用模式下简化倍率计算
+	if SelfUseModeEnabled {
+		return 1.0, true
+	}
+
 	modelRatioMapMutex.RLock()
 	defer modelRatioMapMutex.RUnlock()
 

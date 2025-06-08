@@ -108,7 +108,19 @@ func testChannel(channel *model.Channel, testModel string) (err error, openAIErr
 	logInfo.ApiKey = ""
 	common.SysLog(fmt.Sprintf("testing channel %d with model %s , info %+v ", channel.Id, testModel, logInfo))
 
-	priceData, err := helper.ModelPriceHelper(c, info, 0, int(request.MaxTokens))
+	// 自用模式下简化价格数据
+	priceData := service.SimplePriceData{
+		ModelPrice:             0,
+		ModelRatio:             1.0,
+		CompletionRatio:        1.0,
+		CacheRatio:             1.0,
+		CacheCreationRatio:     1.0,
+		ImageRatio:             1.0,
+		GroupRatio:             1.0,
+		UsePrice:               false,
+		ShouldPreConsumedQuota: int(request.MaxTokens),
+	}
+
 	if err != nil {
 		return err, nil
 	}

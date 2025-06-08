@@ -16,11 +16,9 @@ type Setup struct {
 }
 
 type SetupRequest struct {
-	Username           string `json:"username"`
-	Password           string `json:"password"`
-	ConfirmPassword    string `json:"confirmPassword"`
-	SelfUseModeEnabled bool   `json:"SelfUseModeEnabled"`
-	DemoSiteEnabled    bool   `json:"DemoSiteEnabled"`
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirmPassword"`
 }
 
 func GetSetup(c *gin.Context) {
@@ -120,25 +118,15 @@ func PostSetup(c *gin.Context) {
 		}
 	}
 
-	// Set operation modes
-	operation_setting.SelfUseModeEnabled = req.SelfUseModeEnabled
-	operation_setting.DemoSiteEnabled = req.DemoSiteEnabled
+	// 强制设置为自用模式
+	operation_setting.SelfUseModeEnabled = true
 
-	// Save operation modes to database for persistence
-	err = model.UpdateOption("SelfUseModeEnabled", boolToString(req.SelfUseModeEnabled))
+	// 保存自用模式设置到数据库
+	err = model.UpdateOption("SelfUseModeEnabled", "true")
 	if err != nil {
 		c.JSON(500, gin.H{
 			"success": false,
 			"message": "保存自用模式设置失败: " + err.Error(),
-		})
-		return
-	}
-
-	err = model.UpdateOption("DemoSiteEnabled", boolToString(req.DemoSiteEnabled))
-	if err != nil {
-		c.JSON(500, gin.H{
-			"success": false,
-			"message": "保存演示站点模式设置失败: " + err.Error(),
 		})
 		return
 	}

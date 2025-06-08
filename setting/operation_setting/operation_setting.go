@@ -2,8 +2,8 @@ package operation_setting
 
 import "strings"
 
-var DemoSiteEnabled = false
-var SelfUseModeEnabled = false
+// 强制启用自用模式，移除其他模式
+var SelfUseModeEnabled = true
 
 var AutomaticDisableKeywords = []string{
 	"Your credit balance is too low",

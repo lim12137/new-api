@@ -80,7 +80,6 @@ const routerMap = {
   channel: '/channel',
   tokenizer: '/tokenizer',
   token: '/token',
-  redemption: '/redemption',
   topup: '/topup',
   user: '/user',
   log: '/log',
@@ -88,7 +87,7 @@ const routerMap = {
   setting: '/setting',
   about: '/about',
   detail: '/detail',
-  pricing: '/pricing',
+
   task: '/task',
   playground: '/playground',
   personal: '/personal',
@@ -117,7 +116,7 @@ const SiderBar = () => {
       'channel',
       'tokenizer',
       'token',
-      'redemption',
+
       'topup',
       'user',
       'log',
@@ -126,7 +125,7 @@ const SiderBar = () => {
       'about',
       'chat',
       'detail',
-      'pricing',
+
       'task',
       'playground',
       'personal',
@@ -232,13 +231,7 @@ const SiderBar = () => {
         icon: <IconSetting />,
         className: isAdmin() ? '' : 'tableHiddle',
       },
-      {
-        text: t('兑换码'),
-        itemKey: 'redemption',
-        to: '/redemption',
-        icon: <IconGift />,
-        className: isAdmin() ? '' : 'tableHiddle',
-      },
+
       {
         text: t('用户管理'),
         itemKey: 'user',

@@ -74,7 +74,7 @@ func AudioHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 		relayInfo.PromptTokens = promptTokens
 	}
 
-	priceData, err := helper.ModelPriceHelper(c, relayInfo, preConsumedTokens, 0)
+	priceData, err := ModelPriceHelper(c, relayInfo, preConsumedTokens, 0)
 	if err != nil {
 		return service.OpenAIErrorWrapperLocal(err, "model_price_error", http.StatusInternalServerError)
 	}

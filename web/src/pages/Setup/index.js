@@ -100,13 +100,8 @@ const Setup = () => {
       }
     }
 
-    // Prepare submission data
+    // 自用模式固定配置
     const formValues = { ...values };
-    formValues.SelfUseModeEnabled = values.usageMode === 'self';
-    formValues.DemoSiteEnabled = values.usageMode === 'demo';
-
-    // Remove usageMode as it's not needed by the backend
-    delete formValues.usageMode;
 
     console.log('Submitting data to backend:', formValues);
     setLoading(true);
@@ -224,34 +219,16 @@ const Setup = () => {
                 </div>
               }
             >
-              <Form.RadioGroup
-                field='usageMode'
-                label={
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    {t('使用模式')}
-                    <IconHelpCircle
-                      style={{
-                        marginLeft: '4px',
-                        color: 'var(--semi-color-primary)',
-                        verticalAlign: 'middle',
-                        cursor: 'pointer',
-                      }}
-                      onClick={(e) => {
-                        // e.preventDefault();
-                        // e.stopPropagation();
-                        setUsageModeInfoVisible(true);
-                      }}
-                    />
-                  </div>
-                }
-                extraText={t('可在初始化后修改')}
-                initValue='external'
-                onChange={handleUsageModeChange}
-              >
-                <Form.Radio value='external'>{t('对外运营模式')}</Form.Radio>
-                <Form.Radio value='self'>{t('自用模式')}</Form.Radio>
-                <Form.Radio value='demo'>{t('演示站点模式')}</Form.Radio>
-              </Form.RadioGroup>
+              <div style={{ padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #0ea5e9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#0ea5e9' }}>
+                    {t('自用模式')}
+                  </span>
+                </div>
+                <p style={{ margin: 0, color: '#64748b' }}>
+                  {t('系统已配置为自用模式，专注于个人使用，无需复杂的计费设置。')}
+                </p>
+              </div>
             </Form.Section>
           </Form>
 
