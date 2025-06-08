@@ -41,20 +41,20 @@ cd ..
 
 echo "✅ 前端构建完成"
 
-# 构建ARM64镜像
-echo "🔨 构建 ARM64 Docker 镜像..."
+# 构建ARM64镜像（包含完整分词器）
+echo "🔨 构建 ARM64 Docker 镜像（包含GPT-3.5等分词器）..."
 docker buildx build \
   --platform linux/arm64 \
-  --tag new-api-self-use:$VERSION-arm64 \
-  --tag new-api-self-use:latest-arm64 \
-  --file Dockerfile.arm-simple \
+  --tag new-api-self-use:$VERSION-arm64-full \
+  --tag new-api-self-use:latest-arm64-full \
+  --file Dockerfile.arm-full \
   --load \
   .
 
 echo "✅ ARM64 镜像构建完成"
 
-# 构建ARMv7镜像（如果支持）
-echo "🔨 尝试构建 ARMv7 Docker 镜像..."
+# 构建ARMv7镜像（如果支持，使用简化版本）
+echo "🔨 尝试构建 ARMv7 Docker 镜像（简化版本）..."
 if docker buildx build \
   --platform linux/arm/v7 \
   --tag new-api-self-use:$VERSION-armv7 \
@@ -73,13 +73,13 @@ fi
 echo "🔨 创建多架构清单..."
 
 # 创建并推送多架构清单
-docker buildx build \
-  --platform linux/arm64$([ "$ARMV7_BUILT" = true ] && echo ",linux/arm/v7" || echo "") \
-  --tag new-api-self-use:$VERSION-arm \
-  --tag new-api-self-use:latest-arm \
-  --file Dockerfile.arm-simple \
-  --load \
-  .
+# 创建ARM64完整版别名
+docker tag new-api-self-use:$VERSION-arm64-full new-api-self-use:$VERSION-arm64
+docker tag new-api-self-use:latest-arm64-full new-api-self-use:latest-arm64
+
+# 创建通用ARM标签（指向ARM64完整版）
+docker tag new-api-self-use:$VERSION-arm64-full new-api-self-use:$VERSION-arm
+docker tag new-api-self-use:latest-arm64-full new-api-self-use:latest-arm
 
 # 显示构建结果
 echo ""
@@ -122,22 +122,20 @@ echo ""
 echo "🎉 ARM Docker 镜像构建完成！"
 echo ""
 echo "📋 构建的镜像:"
+echo "  🔹 new-api-self-use:$VERSION-arm64-full (ARM64完整版，包含GPT分词器)"
+echo "  🔹 new-api-self-use:$VERSION-arm64 (ARM64完整版别名)"
 if [ "$ARMV7_BUILT" = true ]; then
-    echo "  🔹 new-api-self-use:$VERSION-arm64 (ARM64)"
-    echo "  🔹 new-api-self-use:$VERSION-armv7 (ARMv7)"
-    echo "  🔹 new-api-self-use:$VERSION-arm (多架构清单)"
-else
-    echo "  🔹 new-api-self-use:$VERSION-arm64 (ARM64)"
-    echo "  🔹 new-api-self-use:$VERSION-arm (ARM64 only)"
+    echo "  🔹 new-api-self-use:$VERSION-armv7 (ARMv7简化版)"
 fi
+echo "  🔹 new-api-self-use:$VERSION-arm (通用ARM标签，指向ARM64完整版)"
 
 echo ""
 echo "📝 使用说明:"
 echo ""
-echo "1. 在 ARM64 设备上运行:"
+echo "1. 在 ARM64 设备上运行（推荐，包含GPT分词器）:"
 echo "   docker run -d -p 3000:3000 --name new-api-arm \\"
 echo "     -v ./data:/data \\"
-echo "     new-api-self-use:$VERSION-arm64"
+echo "     new-api-self-use:$VERSION-arm64-full"
 echo ""
 if [ "$ARMV7_BUILT" = true ]; then
 echo "2. 在 ARMv7 设备上运行:"
@@ -155,10 +153,14 @@ echo "4. 测试镜像:"
 echo "   ./test-arm-docker.sh"
 echo ""
 echo "🎯 适用设备:"
-echo "  - 树莓派 4/5 (ARM64)"
-echo "  - Apple Silicon Mac (ARM64)"
-echo "  - ARM服务器 (ARM64)"
+echo "  - 树莓派 4/5 (ARM64) - 推荐使用完整版"
+echo "  - Apple Silicon Mac (ARM64) - 推荐使用完整版"
+echo "  - ARM服务器 (ARM64) - 推荐使用完整版"
 if [ "$ARMV7_BUILT" = true ]; then
-echo "  - 树莓派 3 (ARMv7)"
-echo "  - 其他ARMv7设备"
+echo "  - 树莓派 3 (ARMv7) - 使用简化版"
+echo "  - 其他ARMv7设备 - 使用简化版"
 fi
+echo ""
+echo "💡 分词器说明:"
+echo "  - ARM64完整版: 包含GPT-3.5, GPT-4, Claude等分词器"
+echo "  - ARMv7简化版: 基础分词器，其他分词器首次使用时下载"

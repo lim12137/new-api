@@ -1,0 +1,144 @@
+# ARM架构完整版Dockerfile
+# 包含GPT-3.5等所有主流模型的分词器
+
+# 前端构建阶段
+FROM --platform=$BUILDPLATFORM node:18-alpine AS builder
+
+WORKDIR /build
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY ./web .
+COPY ./VERSION .
+RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) pnpm run build
+
+# 后端构建阶段
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder2
+
+# 构建参数
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH
+
+WORKDIR /build
+
+ADD go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+COPY --from=builder /build/dist ./web/dist
+RUN go build -ldflags "-s -w -X 'one-api/common.Version=$(cat VERSION)'" -o one-api
+
+# 分词器预下载阶段（使用AMD64进行预下载，然后复制到ARM镜像）
+FROM --platform=linux/amd64 python:3.9-alpine AS tokenizer-downloader
+
+# 设置环境变量
+ENV HUGGINGFACE_HUB_CACHE=/cache
+ENV TRANSFORMERS_CACHE=/cache
+ENV HF_HOME=/cache
+ENV TIKTOKEN_CACHE_DIR=/cache/tiktoken
+
+# 安装必要的包
+RUN apk add --no-cache gcc musl-dev libffi-dev
+RUN pip install --no-cache-dir huggingface_hub transformers tiktoken
+
+# 创建缓存目录
+RUN mkdir -p /cache /cache/tiktoken
+
+# 复制分词器预下载脚本
+COPY docker/huggingface-tei/preload_gpt_tokenizers.py /preload_gpt_tokenizers.py
+COPY docker/huggingface-tei/preload_tokenizers.py /preload_tokenizers.py
+
+# 运行分词器预下载
+RUN echo "开始预下载GPT等主流模型分词器..." && \
+    python /preload_gpt_tokenizers.py && \
+    echo "开始预下载其他分词器..." && \
+    python /preload_tokenizers.py && \
+    echo "分词器预下载完成"
+
+# 验证分词器
+RUN echo "验证分词器..." && \
+    python -c "import tiktoken; print('✓ tiktoken可用'); enc = tiktoken.get_encoding('cl100k_base'); tokens = enc.encode('Hello GPT-3.5!'); print(f'✓ GPT-3.5分词器测试: {len(tokens)} tokens')" && \
+    python -c "from transformers import AutoTokenizer; tokenizer = AutoTokenizer.from_pretrained('gpt2', cache_dir='/cache', trust_remote_code=True); print('✓ GPT-2分词器可用')" || echo "⚠ GPT-2分词器加载失败" && \
+    echo "分词器验证完成"
+
+# 最终运行阶段
+FROM alpine
+
+# 构建参数
+ARG TARGETPLATFORM
+
+# 安装运行时依赖
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache ca-certificates tzdata ffmpeg python3 py3-pip gcc musl-dev libffi-dev \
+    && update-ca-certificates
+
+# 复制预下载的分词器缓存
+COPY --from=tokenizer-downloader /cache /data/cache
+
+# 安装Python依赖用于运行时分词器管理（跳过tiktoken，已在预下载阶段安装）
+RUN pip3 install --no-cache-dir --break-system-packages huggingface_hub transformers
+
+# 复制分词器管理脚本
+COPY docker/huggingface-tei/tokenizer_manager.py /usr/local/bin/tokenizer_manager.py
+RUN chmod +x /usr/local/bin/tokenizer_manager.py
+
+# 复制应用程序
+COPY --from=builder2 /build/one-api /
+
+# 设置环境变量
+ENV HUGGINGFACE_HUB_CACHE=/data/cache
+ENV TRANSFORMERS_CACHE=/data/cache
+ENV HF_HOME=/data/cache
+ENV TIKTOKEN_CACHE_DIR=/data/cache/tiktoken
+
+# 创建启动时分词器验证脚本
+RUN echo '#!/usr/bin/env python3' > /verify_tokenizers.py && \
+    echo 'import os' >> /verify_tokenizers.py && \
+    echo 'import sys' >> /verify_tokenizers.py && \
+    echo '' >> /verify_tokenizers.py && \
+    echo 'def verify_tokenizers():' >> /verify_tokenizers.py && \
+    echo '    print("🔍 验证分词器...")' >> /verify_tokenizers.py && \
+    echo '    try:' >> /verify_tokenizers.py && \
+    echo '        import tiktoken' >> /verify_tokenizers.py && \
+    echo '        enc = tiktoken.get_encoding("cl100k_base")' >> /verify_tokenizers.py && \
+    echo '        tokens = enc.encode("Hello GPT-3.5!")' >> /verify_tokenizers.py && \
+    echo '        print(f"✓ GPT-3.5/GPT-4分词器可用: {len(tokens)} tokens")' >> /verify_tokenizers.py && \
+    echo '    except Exception as e:' >> /verify_tokenizers.py && \
+    echo '        print(f"✗ GPT-3.5/GPT-4分词器不可用: {e}")' >> /verify_tokenizers.py && \
+    echo '    try:' >> /verify_tokenizers.py && \
+    echo '        from transformers import AutoTokenizer' >> /verify_tokenizers.py && \
+    echo '        tokenizer = AutoTokenizer.from_pretrained("gpt2", cache_dir="/data/cache", local_files_only=True)' >> /verify_tokenizers.py && \
+    echo '        tokens = tokenizer.encode("Hello GPT-2!")' >> /verify_tokenizers.py && \
+    echo '        print(f"✓ GPT-2分词器可用: {len(tokens)} tokens")' >> /verify_tokenizers.py && \
+    echo '    except Exception as e:' >> /verify_tokenizers.py && \
+    echo '        print(f"✗ GPT-2分词器不可用: {e}")' >> /verify_tokenizers.py && \
+    echo '    print("分词器验证完成")' >> /verify_tokenizers.py && \
+    echo '' >> /verify_tokenizers.py && \
+    echo 'if __name__ == "__main__":' >> /verify_tokenizers.py && \
+    echo '    verify_tokenizers()' >> /verify_tokenizers.py
+
+RUN chmod +x /verify_tokenizers.py
+
+# 添加架构信息标签
+LABEL org.opencontainers.image.title="New API Self-Use Mode (ARM Full)"
+LABEL org.opencontainers.image.description="Self-use mode with complete tokenizers for GPT-3.5, GPT-4, etc."
+LABEL org.opencontainers.image.version="v1.0.0-self-use"
+LABEL org.opencontainers.image.platform="$TARGETPLATFORM"
+
+EXPOSE 3000
+WORKDIR /data
+
+# 启动时验证分词器
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'echo "🚀 启动New API自用模式 (ARM版本)"' >> /entrypoint.sh && \
+    echo 'python3 /verify_tokenizers.py' >> /entrypoint.sh && \
+    echo 'exec /one-api "$@"' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh && \
+    chmod +x /verify_tokenizers.py
+
+ENTRYPOINT ["/entrypoint.sh"]
