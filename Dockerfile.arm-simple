@@ -1,0 +1,61 @@
+# 简化的ARM Docker构建
+# 跳过解码器预下载以避免构建复杂性
+
+# 前端构建阶段
+FROM --platform=$BUILDPLATFORM node:18-alpine AS builder
+
+WORKDIR /build
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY ./web .
+COPY ./VERSION .
+RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) pnpm run build
+
+# 后端构建阶段
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder2
+
+# 构建参数
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH
+
+WORKDIR /build
+
+ADD go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+COPY --from=builder /build/dist ./web/dist
+RUN go build -ldflags "-s -w -X 'one-api/common.Version=$(cat VERSION)'" -o one-api
+
+# 最终运行阶段
+FROM alpine
+
+# 构建参数
+ARG TARGETPLATFORM
+
+# 安装运行时依赖
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache ca-certificates tzdata ffmpeg \
+    && update-ca-certificates
+
+# 创建数据目录
+RUN mkdir -p /data/cache
+
+# 复制应用程序
+COPY --from=builder2 /build/one-api /
+
+# 添加架构信息标签
+LABEL org.opencontainers.image.title="New API Self-Use Mode (ARM)"
+LABEL org.opencontainers.image.description="Self-use mode version for ARM architecture"
+LABEL org.opencontainers.image.version="v1.0.0-self-use"
+LABEL org.opencontainers.image.platform="$TARGETPLATFORM"
+
+EXPOSE 3000
+WORKDIR /data
+ENTRYPOINT ["/one-api"]
