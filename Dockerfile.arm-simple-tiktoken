@@ -1,0 +1,108 @@
+# ARM架构简化版Dockerfile
+# 使用简单的tiktoken命令预下载所有GPT分词器
+
+# 前端构建阶段
+FROM --platform=$BUILDPLATFORM node:18-alpine AS builder
+
+WORKDIR /build
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+COPY ./web .
+COPY ./VERSION .
+RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) pnpm run build
+
+# 后端构建阶段
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder2
+
+# 构建参数
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH
+
+WORKDIR /build
+
+ADD go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+COPY --from=builder /build/dist ./web/dist
+RUN go build -ldflags "-s -w -X 'one-api/common.Version=$(cat VERSION)'" -o one-api
+
+# tiktoken分词器预下载阶段
+FROM --platform=linux/amd64 python:3.9-alpine AS tokenizer-downloader
+
+# 设置环境变量
+ENV TIKTOKEN_CACHE_DIR=/cache/tiktoken
+ENV HF_HOME=/cache
+
+# 安装tiktoken
+RUN pip install --no-cache-dir tiktoken
+
+# 创建缓存目录
+RUN mkdir -p /cache/tiktoken
+
+# 使用简化命令预下载所有tiktoken分词器
+RUN echo "预下载所有tiktoken分词器..." && \
+    python -c "import tiktoken; list(map(tiktoken.get_encoding, set(tiktoken.model.MODEL_TO_ENCODING.values())))" && \
+    echo "tiktoken分词器预下载完成"
+
+# 验证预下载的分词器
+RUN echo "验证tiktoken分词器..." && \
+    python -c "import tiktoken; encodings = set(tiktoken.model.MODEL_TO_ENCODING.values()); print(f'✓ 预下载了 {len(encodings)} 个tiktoken编码器')" && \
+    python -c "import tiktoken; [print(f'✓ {enc}: {len(tiktoken.get_encoding(enc).encode(\"Hello GPT!\"))} tokens') for enc in ['cl100k_base', 'o200k_base', 'p50k_base']]" && \
+    echo "tiktoken验证完成"
+
+# 最终运行阶段
+FROM alpine
+
+# 构建参数
+ARG TARGETPLATFORM
+
+# 安装运行时依赖
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache ca-certificates tzdata ffmpeg python3 py3-pip \
+    && update-ca-certificates
+
+# 复制预下载的tiktoken缓存
+COPY --from=tokenizer-downloader /cache /data/cache
+
+# tiktoken已在预下载阶段安装，运行时直接使用缓存
+
+# 复制应用程序
+COPY --from=builder2 /build/one-api /
+
+# 设置环境变量
+ENV TIKTOKEN_CACHE_DIR=/data/cache/tiktoken
+ENV HF_HOME=/data/cache
+
+# 创建启动时tiktoken验证脚本（使用预下载的缓存）
+RUN echo '#!/bin/sh' > /verify_tiktoken.sh && \
+    echo 'echo "🔍 验证tiktoken分词器缓存..."' >> /verify_tiktoken.sh && \
+    echo 'echo "缓存目录: /data/cache/tiktoken"' >> /verify_tiktoken.sh && \
+    echo 'ls -la /data/cache/tiktoken/ 2>/dev/null || echo "tiktoken缓存目录不存在"' >> /verify_tiktoken.sh && \
+    echo 'echo "缓存文件数量: $(find /data/cache/tiktoken -name "*.tiktoken" 2>/dev/null | wc -l)"' >> /verify_tiktoken.sh && \
+    echo 'echo "✓ tiktoken分词器缓存验证完成"' >> /verify_tiktoken.sh && \
+    chmod +x /verify_tiktoken.sh
+
+# 添加架构信息标签
+LABEL org.opencontainers.image.title="New API Self-Use Mode (ARM with tiktoken)"
+LABEL org.opencontainers.image.description="Self-use mode with tiktoken encoders for GPT models"
+LABEL org.opencontainers.image.version="v1.0.0-self-use"
+LABEL org.opencontainers.image.platform="$TARGETPLATFORM"
+
+EXPOSE 3000
+WORKDIR /data
+
+# 启动时验证tiktoken缓存
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'echo "🚀 启动New API自用模式 (ARM + tiktoken)"' >> /entrypoint.sh && \
+    echo '/verify_tiktoken.sh' >> /entrypoint.sh && \
+    echo 'exec /one-api "$@"' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

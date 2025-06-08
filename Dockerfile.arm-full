@@ -53,15 +53,16 @@ COPY docker/huggingface-tei/preload_gpt_tokenizers.py /preload_gpt_tokenizers.py
 COPY docker/huggingface-tei/preload_tokenizers.py /preload_tokenizers.py
 
 # 运行分词器预下载
-RUN echo "开始预下载GPT等主流模型分词器..." && \
-    python /preload_gpt_tokenizers.py && \
-    echo "开始预下载其他分词器..." && \
+RUN echo "开始预下载tiktoken分词器..." && \
+    python -c "import tiktoken; list(map(tiktoken.get_encoding, set(tiktoken.model.MODEL_TO_ENCODING.values())))" && \
+    echo "开始预下载HuggingFace分词器..." && \
     python /preload_tokenizers.py && \
     echo "分词器预下载完成"
 
 # 验证分词器
 RUN echo "验证分词器..." && \
-    python -c "import tiktoken; print('✓ tiktoken可用'); enc = tiktoken.get_encoding('cl100k_base'); tokens = enc.encode('Hello GPT-3.5!'); print(f'✓ GPT-3.5分词器测试: {len(tokens)} tokens')" && \
+    python -c "import tiktoken; print('✓ tiktoken可用'); print(f'✓ 可用编码器: {list(tiktoken.model.MODEL_TO_ENCODING.values())}')" && \
+    python -c "import tiktoken; enc = tiktoken.get_encoding('cl100k_base'); tokens = enc.encode('Hello GPT-3.5!'); print(f'✓ GPT-3.5分词器测试: {len(tokens)} tokens')" && \
     python -c "from transformers import AutoTokenizer; tokenizer = AutoTokenizer.from_pretrained('gpt2', cache_dir='/cache', trust_remote_code=True); print('✓ GPT-2分词器可用')" || echo "⚠ GPT-2分词器加载失败" && \
     echo "分词器验证完成"
 

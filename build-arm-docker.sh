@@ -41,8 +41,18 @@ cd ..
 
 echo "✅ 前端构建完成"
 
+# 构建ARM64镜像（使用简化tiktoken方法）
+echo "🔨 构建 ARM64 Docker 镜像（使用简化tiktoken方法）..."
+docker buildx build \
+  --platform linux/arm64 \
+  --tag new-api-self-use:$VERSION-arm64-tiktoken \
+  --tag new-api-self-use:latest-arm64-tiktoken \
+  --file Dockerfile.arm-simple-tiktoken \
+  --load \
+  .
+
 # 构建ARM64镜像（包含完整分词器）
-echo "🔨 构建 ARM64 Docker 镜像（包含GPT-3.5等分词器）..."
+echo "🔨 构建 ARM64 Docker 镜像（包含完整分词器）..."
 docker buildx build \
   --platform linux/arm64 \
   --tag new-api-self-use:$VERSION-arm64-full \
@@ -73,13 +83,13 @@ fi
 echo "🔨 创建多架构清单..."
 
 # 创建并推送多架构清单
-# 创建ARM64完整版别名
-docker tag new-api-self-use:$VERSION-arm64-full new-api-self-use:$VERSION-arm64
-docker tag new-api-self-use:latest-arm64-full new-api-self-use:latest-arm64
+# 创建ARM64别名（优先使用简化tiktoken版本）
+docker tag new-api-self-use:$VERSION-arm64-tiktoken new-api-self-use:$VERSION-arm64
+docker tag new-api-self-use:latest-arm64-tiktoken new-api-self-use:latest-arm64
 
-# 创建通用ARM标签（指向ARM64完整版）
-docker tag new-api-self-use:$VERSION-arm64-full new-api-self-use:$VERSION-arm
-docker tag new-api-self-use:latest-arm64-full new-api-self-use:latest-arm
+# 创建通用ARM标签（指向简化tiktoken版本）
+docker tag new-api-self-use:$VERSION-arm64-tiktoken new-api-self-use:$VERSION-arm
+docker tag new-api-self-use:latest-arm64-tiktoken new-api-self-use:latest-arm
 
 # 显示构建结果
 echo ""
@@ -122,20 +132,21 @@ echo ""
 echo "🎉 ARM Docker 镜像构建完成！"
 echo ""
 echo "📋 构建的镜像:"
-echo "  🔹 new-api-self-use:$VERSION-arm64-full (ARM64完整版，包含GPT分词器)"
-echo "  🔹 new-api-self-use:$VERSION-arm64 (ARM64完整版别名)"
+echo "  🔹 new-api-self-use:$VERSION-arm64-tiktoken (ARM64简化版，tiktoken分词器)"
+echo "  🔹 new-api-self-use:$VERSION-arm64-full (ARM64完整版，所有分词器)"
+echo "  🔹 new-api-self-use:$VERSION-arm64 (ARM64默认，指向tiktoken版本)"
 if [ "$ARMV7_BUILT" = true ]; then
     echo "  🔹 new-api-self-use:$VERSION-armv7 (ARMv7简化版)"
 fi
-echo "  🔹 new-api-self-use:$VERSION-arm (通用ARM标签，指向ARM64完整版)"
+echo "  🔹 new-api-self-use:$VERSION-arm (通用ARM标签，指向tiktoken版本)"
 
 echo ""
 echo "📝 使用说明:"
 echo ""
-echo "1. 在 ARM64 设备上运行（推荐，包含GPT分词器）:"
+echo "1. 在 ARM64 设备上运行（推荐，tiktoken分词器）:"
 echo "   docker run -d -p 3000:3000 --name new-api-arm \\"
 echo "     -v ./data:/data \\"
-echo "     new-api-self-use:$VERSION-arm64-full"
+echo "     new-api-self-use:$VERSION-arm64-tiktoken"
 echo ""
 if [ "$ARMV7_BUILT" = true ]; then
 echo "2. 在 ARMv7 设备上运行:"
@@ -162,5 +173,6 @@ echo "  - 其他ARMv7设备 - 使用简化版"
 fi
 echo ""
 echo "💡 分词器说明:"
-echo "  - ARM64完整版: 包含GPT-3.5, GPT-4, Claude等分词器"
+echo "  - ARM64 tiktoken版: 包含所有GPT分词器（推荐）"
+echo "  - ARM64完整版: 包含GPT + HuggingFace分词器"
 echo "  - ARMv7简化版: 基础分词器，其他分词器首次使用时下载"
